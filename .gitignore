@@ -1,27 +1,3 @@
-# Dependencies
 node_modules/
-
-# Environment files
-.env
-.env.*
-!.env.example
-
-# Runtime data
-logs/
-data/tokens.json
-
-# Build output
-dist/
-build/
-coverage/
-
-# Debug logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# OS/editor files
+logs/*.log
 .DS_Store
-Thumbs.db
-*.pem

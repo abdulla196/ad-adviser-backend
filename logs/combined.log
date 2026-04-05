@@ -790,3 +790,5 @@
 [2026-04-05 01:38:44] INFO: ::1 - - [04/Apr/2026:23:38:44 +0000] "GET /api/unified/campaigns HTTP/1.1" - - "http://localhost:3000/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
 [2026-04-05 01:39:23] INFO: ::1 - - [04/Apr/2026:23:39:23 +0000] "GET /api/meta/campaigns?status=ACTIVE&dateRange=30d HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
 [2026-04-05 01:39:30] INFO: ::1 - - [04/Apr/2026:23:39:30 +0000] "GET /api/meta/campaigns?status=ACTIVE&dateRange=30d HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[2026-04-05 17:55:06] INFO: Ad Adviser backend running on port 5000
+[2026-04-05 17:55:06] INFO: Environment: development
