@@ -1,0 +1,42 @@
+[2026-03-27 21:07:09] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:07:30] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:12:55] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:30:44] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:33:11] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:40:09] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:51:13] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-03-27 21:52:44] ERROR: Meta OAuth error: Request failed with status code 400
+[2026-04-05 00:41:00] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:41:00] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:41:06] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:41:06] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:43:52] ERROR: Unified google error: Google not connected — no refresh token
+[2026-04-05 00:43:52] ERROR: Unified meta error: Request failed with status code 400
+[2026-04-05 00:43:52] ERROR: Unified snapchat error: Request failed with status code 401
+[2026-04-05 00:43:52] ERROR: Unified google error: Google not connected — no refresh token
+[2026-04-05 00:43:53] ERROR: Unified snapchat error: Request failed with status code 401
+[2026-04-05 00:43:53] ERROR: Unified meta error: Request failed with status code 400
+[2026-04-05 00:44:36] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:44:36] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:44:42] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:44:42] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:44:44] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:44:44] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:44:46] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:44:46] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:44:52] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:44:52] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:45:05] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:45:05] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE
+[2026-04-05 00:45:48] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:45:48] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:45:54] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:45:54] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:46:00] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:46:00] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:48:58] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:48:58] ERROR: 100 [Meta] Unsupported get request. Object with ID 'act_your_ad_account_id' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 00:49:45] ERROR: Meta getCampaigns error: Request failed with status code 400
+[2026-04-05 00:49:45] ERROR: 400 [Meta] (#100) Filtering field 'status' is not supported — GET /api/meta/campaigns?status=ACTIVE,PAUSED
+[2026-04-05 01:38:43] ERROR: Unified google error: Google not connected — no refresh token
+[2026-04-05 01:38:44] ERROR: Unified snapchat error: Request failed with status code 401
