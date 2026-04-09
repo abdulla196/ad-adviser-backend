@@ -38,12 +38,16 @@ function resolveMetaScopes() {
 
 // ── META ──────────────────────────────────────────────
 const meta = {
-  getAuthUrl: () => {
+  getAuthUrl: ({ state } = {}) => {
     const params = new URLSearchParams({
       client_id:     process.env.META_APP_ID,
       redirect_uri:  process.env.META_REDIRECT_URI,
       response_type: 'code',
     });
+
+    if (state) {
+      params.set('state', state);
+    }
 
     const configId = (process.env.META_CONFIG_ID || '').trim();
     if (configId) {

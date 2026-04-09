@@ -39,6 +39,15 @@ const handlePlatformError = (err, platform) => {
 
 // Express error middleware (4 args = error handler)
 const errorMiddleware = (err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    logger.error(`413 Request body too large — ${req.method} ${req.originalUrl}`);
+    return res.status(413).json({
+      error: 'Uploaded image is too large. Choose a smaller image and try again.',
+      type: 'PAYLOAD_TOO_LARGE',
+      path: req.originalUrl,
+    });
+  }
+
   const parsed = handlePlatformError(err, 'API');
   logger.error(`${parsed.status} ${parsed.message} — ${req.method} ${req.originalUrl}`);
   res.status(parsed.status).json({

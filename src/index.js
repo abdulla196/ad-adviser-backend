@@ -1,4 +1,6 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env.local') });
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,17 +8,20 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const logger = require('./config/logger');
+const { initializeDatabase } = require('./config/database');
 const metaRoutes = require('./routes/meta');
 const tiktokRoutes = require('./routes/tiktok');
 const snapchatRoutes = require('./routes/snapchat');
 const googleRoutes = require('./routes/google');
 const unifiedRoutes = require('./routes/unified');
 const authRoutes = require('./routes/auth');
+const userAuthRoutes = require('./routes/userAuth');
 const { apiKeyAuth } = require('./middleware/auth');
 const { errorMiddleware } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || '6mb';
 
 // ── Security ──────────────────────────────────────────
 app.use(helmet());
@@ -39,7 +44,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // ── Middleware ────────────────────────────────────────
-app.use(express.json());
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(morgan('combined', { stream: { write: msg => logger.info(msg.trim()) } }));
 
 // ── Health check (no auth required) ──────────────────
@@ -53,6 +58,7 @@ app.get('/health', (req, res) => {
 
 // ── API Routes (protected by API key) ────────────────
 app.use('/api/auth',     authRoutes);           // no API key needed for OAuth
+app.use('/api/auth',     userAuthRoutes);       // no API key needed for register/login
 app.use('/api/meta',     apiKeyAuth, metaRoutes);
 app.use('/api/tiktok',   apiKeyAuth, tiktokRoutes);
 app.use('/api/snapchat', apiKeyAuth, snapchatRoutes);
@@ -67,9 +73,19 @@ app.use((req, res) => {
 // ── Global error handler ──────────────────────────────
 app.use(errorMiddleware);
 
-app.listen(PORT, () => {
-  logger.info(`Ad Adviser backend running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV}`);
-});
+const startServer = async () => {
+  try {
+    await initializeDatabase();
+    app.listen(PORT, () => {
+      logger.info(`Ad Adviser backend running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV}`);
+    });
+  } catch (error) {
+    logger.error(`Failed to start backend: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 module.exports = app;

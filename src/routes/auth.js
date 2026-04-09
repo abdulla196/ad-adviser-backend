@@ -1,7 +1,21 @@
 const router = require('express').Router();
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const oauth  = require('../services/oauthService');
 const store  = require('../store/tokenStore');
 const logger = require('../config/logger');
+const { requireUserSession } = require('../middleware/userSession');
+const { getCurrentUserFromToken } = require('../services/userAuthService');
+const {
+  buildMetaStatus,
+  createIntegration,
+  getActiveIntegration,
+  listIntegrations,
+  removeIntegration,
+  setActiveIntegration,
+  updateSelectedAdAccount,
+  updateSelectedPage,
+} = require('../services/metaIntegrationService');
 
 /**
  * OAuth Routes
@@ -26,23 +40,61 @@ const logger = require('../config/logger');
 
 const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+const issueMetaOauthState = (userId) => jwt.sign(
+  { sub: userId, type: 'meta_oauth_state' },
+  process.env.JWT_SECRET,
+  { expiresIn: '15m' }
+);
+
+const readMetaOauthState = (value) => {
+  const payload = jwt.verify(String(value || ''), process.env.JWT_SECRET);
+  if (payload?.type !== 'meta_oauth_state' || !payload?.sub) {
+    throw new Error('Invalid OAuth state');
+  }
+  return payload;
+};
+
+const fetchMetaProfile = async (accessToken) => {
+  const response = await axios.get('https://graph.facebook.com/v19.0/me', {
+    params: {
+      access_token: accessToken,
+      fields: 'id,name,picture{url}',
+    },
+  });
+
+  return response.data;
+};
+
 // ── META ──────────────────────────────────────────────
-router.get('/meta/connect', (req, res) => {
-  res.redirect(oauth.meta.getAuthUrl());
+router.get('/meta/connect', async (req, res) => {
+  try {
+    const user = await getCurrentUserFromToken(req.query.token);
+    const state = issueMetaOauthState(user.id);
+    res.redirect(oauth.meta.getAuthUrl({ state }));
+  } catch (error) {
+    res.status(401).send('Unauthorized');
+  }
 });
 
 router.get('/meta/callback', async (req, res) => {
   try {
-    const { code } = req.query;
+    const { code, state } = req.query;
     if (!code) return res.status(400).json({ error: 'Missing code' });
+    if (!state) return res.status(400).json({ error: 'Missing state' });
+    const oauthState = readMetaOauthState(state);
     const tokens     = await oauth.meta.exchangeCode(code);
     const longLived  = await oauth.meta.getLongLivedToken(tokens.access_token);
-    store.saveTokens('meta', {
-      access_token: longLived.access_token,
-      token_type:   longLived.token_type,
-      expires_in:   longLived.expires_in,
+    const profile = await fetchMetaProfile(longLived.access_token);
+
+    await createIntegration(oauthState.sub, {
+      metaUserId: profile.id,
+      metaUserName: profile.name,
+      metaUserPictureUrl: profile.picture?.data?.url || null,
+      accessToken: longLived.access_token,
+      tokenType: longLived.token_type,
+      expiresIn: longLived.expires_in,
     });
-    logger.info('Meta OAuth success — token saved');
+    logger.info(`Meta OAuth success — integration saved for user ${oauthState.sub}`);
     // Send HTML that notifies the opener window and closes the popup
     res.send(`<!DOCTYPE html><html><body><script>
       if (window.opener) {
@@ -131,22 +183,27 @@ router.get('/google/callback', async (req, res) => {
 });
 
 // ── Status — which platforms are connected ────────────
-router.get('/status', (req, res) => {
-  res.json({ platforms: store.getStatus() });
+router.get('/status', requireUserSession, async (req, res, next) => {
+  try {
+    const status = store.getStatus();
+    status.meta = await buildMetaStatus(req.currentUser.id);
+    res.json({ platforms: status });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // ── Meta: list user's Facebook Pages ──────────────────
-router.get('/meta/pages', async (req, res) => {
+router.get('/meta/pages', requireUserSession, async (req, res) => {
   try {
-    const token = store.resolveToken('meta');
-    if (!token) return res.status(401).json({ error: 'Meta not connected' });
-    const axios = require('axios');
+    const integration = await getActiveIntegration(req.currentUser.id);
+    if (!integration?.accessToken) return res.status(401).json({ error: 'Meta not connected' });
 
     // Always fetch the user's profile (works with public_profile)
     let user = null;
     try {
       const userResp = await axios.get('https://graph.facebook.com/v19.0/me', {
-        params: { access_token: token, fields: 'id,name,picture{url}' },
+        params: { access_token: integration.accessToken, fields: 'id,name,picture{url}' },
       });
       user = userResp.data;
     } catch (e) {
@@ -157,7 +214,7 @@ router.get('/meta/pages', async (req, res) => {
     let pages = [];
     try {
       const resp = await axios.get('https://graph.facebook.com/v19.0/me/accounts', {
-        params: { access_token: token, fields: 'id,name,picture{url},category' },
+        params: { access_token: integration.accessToken, fields: 'id,name,picture{url},category' },
       });
       pages = resp.data.data || [];
     } catch (e) {
@@ -172,26 +229,38 @@ router.get('/meta/pages', async (req, res) => {
 });
 
 // ── Meta: save selected page ──────────────────────────
-router.post('/meta/select-page', (req, res) => {
-  const { pageId, pageName } = req.body;
+router.post('/meta/select-page', requireUserSession, async (req, res) => {
+  const { integrationId, pageId, pageName, pagePictureUrl, pageCategory } = req.body;
   if (!pageId) return res.status(400).json({ error: 'pageId is required' });
-  const existing = store.getTokens('meta');
-  if (!existing || existing.disconnected) {
+  const activeIntegration = integrationId
+    ? await setActiveIntegration(req.currentUser.id, integrationId)
+    : await getActiveIntegration(req.currentUser.id);
+
+  if (!activeIntegration) {
     return res.status(401).json({ error: 'Meta not connected' });
   }
-  store.saveTokens('meta', { ...existing, selectedPageId: pageId, selectedPageName: pageName });
+
+  await updateSelectedPage(req.currentUser.id, activeIntegration.id, {
+    id: pageId,
+    name: pageName,
+    pictureUrl: pagePictureUrl,
+    category: pageCategory,
+  });
   logger.info(`Meta page selected: ${pageName} (${pageId})`);
   res.json({ success: true, pageId, pageName });
 });
 
 // ── Meta: get ad accounts linked to user ──────────────
-router.get('/meta/ad-accounts', async (req, res) => {
+router.get('/meta/ad-accounts', requireUserSession, async (req, res) => {
   try {
-    const token = store.resolveToken('meta');
-    if (!token) return res.status(401).json({ error: 'Meta not connected' });
-    const axios = require('axios');
+    const integrationId = req.query.integrationId ? Number(req.query.integrationId) : null;
+    const integration = integrationId
+      ? await setActiveIntegration(req.currentUser.id, integrationId)
+      : await getActiveIntegration(req.currentUser.id);
+
+    if (!integration?.accessToken) return res.status(401).json({ error: 'Meta not connected' });
     const resp = await axios.get('https://graph.facebook.com/v19.0/me/adaccounts', {
-      params: { access_token: token, fields: 'id,name,account_status,currency' },
+      params: { access_token: integration.accessToken, fields: 'id,name,account_status,currency' },
     });
     res.json({ adAccounts: resp.data.data || [] });
   } catch (err) {
@@ -201,25 +270,72 @@ router.get('/meta/ad-accounts', async (req, res) => {
 });
 
 // ── Meta: save selected ad account ────────────────────
-router.post('/meta/select-ad-account', (req, res) => {
-  const { adAccountId, adAccountName } = req.body;
+router.post('/meta/select-ad-account', requireUserSession, async (req, res) => {
+  const { integrationId, adAccountId, adAccountName, currency } = req.body;
   if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
-  const existing = store.getTokens('meta');
-  if (!existing || existing.disconnected) {
+  const activeIntegration = integrationId
+    ? await setActiveIntegration(req.currentUser.id, integrationId)
+    : await getActiveIntegration(req.currentUser.id);
+
+  if (!activeIntegration) {
     return res.status(401).json({ error: 'Meta not connected' });
   }
-  store.saveTokens('meta', { ...existing, selectedAdAccountId: adAccountId, selectedAdAccountName: adAccountName });
+
+  await updateSelectedAdAccount(req.currentUser.id, activeIntegration.id, {
+    id: adAccountId,
+    name: adAccountName,
+    currency,
+  });
   logger.info(`Meta ad account selected: ${adAccountName} (${adAccountId})`);
   res.json({ success: true, adAccountId, adAccountName });
 });
 
+router.get('/meta/integrations', requireUserSession, async (req, res, next) => {
+  try {
+    const integrations = await listIntegrations(req.currentUser.id);
+    res.json({ integrations });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/meta/integrations/:integrationId/activate', requireUserSession, async (req, res, next) => {
+  try {
+    const integrationId = Number(req.params.integrationId);
+    const integration = await setActiveIntegration(req.currentUser.id, integrationId);
+    if (!integration) return res.status(404).json({ error: 'Integration not found' });
+    res.json({ integration });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/meta/integrations/:integrationId', requireUserSession, async (req, res, next) => {
+  try {
+    const integrationId = Number(req.params.integrationId);
+    const integration = await removeIntegration(req.currentUser.id, integrationId);
+    if (!integration) return res.status(404).json({ error: 'Integration not found' });
+    res.json({ success: true, integrationId });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ── Disconnect a platform ─────────────────────────────
-router.delete('/disconnect/:platform', (req, res) => {
+router.delete('/disconnect/:platform', requireUserSession, async (req, res) => {
   const { platform } = req.params;
   const valid = ['meta', 'tiktok', 'snapchat', 'google'];
   if (!valid.includes(platform)) {
     return res.status(400).json({ error: `Invalid platform: ${platform}` });
   }
+
+  if (platform === 'meta') {
+    const integrations = await listIntegrations(req.currentUser.id);
+    await Promise.all(integrations.map((integration) => removeIntegration(req.currentUser.id, integration.id)));
+    logger.info(`meta disconnected for user ${req.currentUser.id}`);
+    return res.json({ success: true, platform });
+  }
+
   store.removeTokens(platform);
   logger.info(`${platform} disconnected`);
   res.json({ success: true, platform });

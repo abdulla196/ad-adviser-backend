@@ -1,31 +1,33 @@
 const axios = require('axios');
 const logger = require('../config/logger');
-const { resolveToken, getTokens } = require('../store/tokenStore');
+const { getActiveIntegration } = require('./metaIntegrationService');
 
 const BASE = 'https://graph.facebook.com/v19.0';
-const TOKEN = () => resolveToken('meta');
-
-const isRealAdAccountId = (value) =>
-  !!value && value !== '' && value !== 'act_your_ad_account_id';
-
-const AD_ACCOUNT = () => {
-  const stored = getTokens('meta');
-  if (isRealAdAccountId(stored?.selectedAdAccountId)) {
-    return stored.selectedAdAccountId;
-  }
-
-  if (isRealAdAccountId(process.env.META_AD_ACCOUNT_ID)) {
-    return process.env.META_AD_ACCOUNT_ID;
-  }
-
-  return null;
-};
 
 const metaClient = axios.create({ baseURL: BASE });
 
-const requireAdAccount = () => {
-  const adAccountId = AD_ACCOUNT();
-  if (!adAccountId) {
+const getActiveMetaContext = async (userId) => {
+  const integration = await getActiveIntegration(userId);
+  if (!integration?.accessToken) {
+    const error = new Error('Meta is not connected');
+    error.response = {
+      status: 401,
+      data: {
+        error: {
+          message: 'Connect a Meta integration before loading campaigns',
+          type: 'META_NOT_CONNECTED',
+        },
+      },
+    };
+    throw error;
+  }
+
+  return integration;
+};
+
+const requireAdAccount = async (userId) => {
+  const integration = await getActiveMetaContext(userId);
+  if (!integration.selectedAdAccountId) {
     const error = new Error('Meta ad account is not selected');
     error.response = {
       status: 400,
@@ -39,12 +41,12 @@ const requireAdAccount = () => {
     throw error;
   }
 
-  return adAccountId;
+  return integration;
 };
 
 // ── Campaigns ─────────────────────────────────────────
-const getCampaigns = async ({ dateRange = '30d', status = 'ACTIVE', startDate, endDate } = {}) => {
-  const adAccountId = requireAdAccount();
+const getCampaigns = async (userId, { dateRange = '30d', status = 'ACTIVE', startDate, endDate } = {}) => {
+  const integration = await requireAdAccount(userId);
   const statuses = String(status)
     .split(',')
     .map((value) => value.trim())
@@ -61,10 +63,10 @@ const getCampaigns = async ({ dateRange = '30d', status = 'ACTIVE', startDate, e
     `insights.${insightsRange}{impressions,reach,clicks,spend,cpm,ctr,cpc,actions,action_values,purchase_roas}`,
   ].join(',');
 
-  const res = await metaClient.get(`/${adAccountId}/campaigns`, {
+  const res = await metaClient.get(`/${integration.selectedAdAccountId}/campaigns`, {
     params: {
       fields,
-      access_token: TOKEN(),
+      access_token: integration.accessToken,
     },
   });
   const campaigns = res.data.data || [];
@@ -77,7 +79,8 @@ const getCampaigns = async ({ dateRange = '30d', status = 'ACTIVE', startDate, e
 };
 
 // ── Single campaign ───────────────────────────────────
-const getCampaign = async (campaignId) => {
+const getCampaign = async (userId, campaignId) => {
+  const integration = await getActiveMetaContext(userId);
   const fields = [
     'id', 'name', 'status', 'effective_status', 'configured_status', 'objective',
     'buying_type', 'daily_budget', 'lifetime_budget', 'budget_remaining',
@@ -85,13 +88,14 @@ const getCampaign = async (campaignId) => {
     'insights{impressions,reach,clicks,spend,cpm,ctr,cpc,actions,action_values,purchase_roas}',
   ].join(',');
   const res = await metaClient.get(`/${campaignId}`, {
-    params: { fields, access_token: TOKEN() },
+    params: { fields, access_token: integration.accessToken },
   });
   return res.data;
 };
 
 // ── Ad sets ───────────────────────────────────────────
-const getAdSets = async (campaignId) => {
+const getAdSets = async (userId, campaignId) => {
+  const integration = await getActiveMetaContext(userId);
   const fields = [
     'id', 'name', 'status', 'effective_status', 'daily_budget', 'lifetime_budget',
     'bid_amount', 'optimization_goal', 'billing_event', 'targeting',
@@ -99,13 +103,14 @@ const getAdSets = async (campaignId) => {
     'insights{impressions,reach,clicks,spend,cpm,ctr,cpc,actions,action_values,purchase_roas}',
   ].join(',');
   const res = await metaClient.get(`/${campaignId}/adsets`, {
-    params: { fields, access_token: TOKEN() },
+    params: { fields, access_token: integration.accessToken },
   });
   return res.data.data || [];
 };
 
 // ── Ads ──────────────────────────────────────────────
-const getAds = async (campaignId) => {
+const getAds = async (userId, campaignId) => {
+  const integration = await getActiveMetaContext(userId);
   const fields = [
     'id', 'name', 'status', 'effective_status', 'created_time', 'updated_time',
     'adset{id,name}', 'campaign{id,name}',
@@ -113,40 +118,42 @@ const getAds = async (campaignId) => {
     'insights{impressions,reach,clicks,spend,cpm,ctr,cpc,actions,action_values,purchase_roas}',
   ].join(',');
   const res = await metaClient.get(`/${campaignId}/ads`, {
-    params: { fields, access_token: TOKEN(), limit: 100 },
+    params: { fields, access_token: integration.accessToken, limit: 100 },
   });
   return res.data.data || [];
 };
 
 // ── Create campaign ───────────────────────────────────
-const createCampaign = async ({ name, objective, status = 'PAUSED', daily_budget }) => {
-  const res = await metaClient.post(`/${requireAdAccount()}/campaigns`, {
+const createCampaign = async (userId, { name, objective, status = 'PAUSED', daily_budget }) => {
+  const integration = await requireAdAccount(userId);
+  const res = await metaClient.post(`/${integration.selectedAdAccountId}/campaigns`, {
     name, objective, status,
     daily_budget: Math.round(daily_budget * 100), // cents
     special_ad_categories: [],
-    access_token: TOKEN(),
+    access_token: integration.accessToken,
   });
   return res.data;
 };
 
 // ── Update campaign ───────────────────────────────────
-const updateCampaign = async (campaignId, updates) => {
-  const res = await metaClient.post(`/${campaignId}`, { ...updates, access_token: TOKEN() });
+const updateCampaign = async (userId, campaignId, updates) => {
+  const integration = await getActiveMetaContext(userId);
+  const res = await metaClient.post(`/${campaignId}`, { ...updates, access_token: integration.accessToken });
   return res.data;
 };
 
 // ── Pause / Activate ──────────────────────────────────
-const setCampaignStatus = async (campaignId, status) =>
-  updateCampaign(campaignId, { status });
+const setCampaignStatus = async (userId, campaignId, status) =>
+  updateCampaign(userId, campaignId, { status });
 
 // ── Get ads promoted on a specific Page ───────────────
-const getAdsByPage = async (pageId) => {
-  const token = TOKEN();
+const getAdsByPage = async (userId, pageId) => {
+  const integration = await getActiveMetaContext(userId);
   // Fetch ads that promote this page across all ad accounts
   const res = await metaClient.get(`/${pageId}/ads`, {
     params: {
       fields: 'id,name,status,creative{id,name,title,body,image_url,thumbnail_url},insights{impressions,clicks,spend,conversions}',
-      access_token: token,
+      access_token: integration.accessToken,
       limit: 100,
     },
   });

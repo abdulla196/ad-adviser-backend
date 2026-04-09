@@ -11,7 +11,7 @@ const ADVERTISER = () => {
 const tiktokClient = () => axios.create({
   baseURL: BASE,
   headers: { 'Access-Token': TOKEN() },
-});
+}); 
 
 // ── Campaigns ─────────────────────────────────────────
 const getCampaigns = async ({ page = 1, pageSize = 20 } = {}) => {
